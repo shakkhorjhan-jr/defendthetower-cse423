@@ -9,7 +9,7 @@ fovY = 120  # Field of view
 GRID_LENGTH = 600  # Length of grid lines
 rand_var = 423
 
-
+#chudi
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glColor3f(1,1,1)
     glMatrixMode(GL_PROJECTION)
