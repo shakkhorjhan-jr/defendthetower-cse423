@@ -5,12 +5,23 @@ from OpenGL.GLU import *
 import math 
 import random
 import time
+
 #Widow Size
 window_width=1000
 window_height=800
 Aspect_Ratio=window_width/window_height
+
 # Camera-related variables
-camera_pos = (0,500,500)
+camera_z_axis_position=500
+camera_angle=0
+view_mode=0
+first_person_mode=False
+
+#Player Variable
+player_x=0
+player_y=-350
+Player_face_angle=90
+
 
 fovY = 120  # Field of view
 GRID_LENGTH = 600  # Length of grid lines
@@ -127,6 +138,16 @@ def mouseListener(button, state, x, y):
         # if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
 
 
+
+
+def idle():
+    """
+    Idle function that runs continuously:
+    - Triggers screen redraw for real-time updates.
+    """
+    # Ensure the screen updates with the latest changes
+    glutPostRedisplay()
+
 def setupCamera():
     """
     Configures the camera's projection and view settings.
@@ -139,21 +160,59 @@ def setupCamera():
     glMatrixMode(GL_MODELVIEW)  # Switch to model-view matrix mode
     glLoadIdentity()  # Reset the model-view matrix
 
-    # Extract camera position and look-at target
-    x, y, z = camera_pos
-    # Position the camera and set its orientation
-    gluLookAt(x, y, z,  # Camera position
-              0, 0, 0,  # Look-at target
-              0, 0, 1)  # Up vector (z-axis)
+    if first_person_mode: #FPP
+        Rad_Player_face_angle = math.radians(Player_face_angle)
+        fx = math.cos(Rad_Player_face_angle)
+        fy = math.sin(Rad_Player_face_angle)
+
+        eye_x = player_x + fx * 40
+        eye_y = player_y + fy * 40
+        eye_z = 180
+
+        center_x = player_x + fx * 400
+        center_y = player_y + fy * 400
+        center_z = 80
+
+        gluLookAt(eye_x, eye_y, eye_z,
+                  center_x, center_y, center_z,
+                  0, 0, 1)
+        return
+
+    if view_mode==0: #View From a broder angle of arena
+        rad_camera_angle = math.radians(camera_angle)
+        cam_x = math.cos(rad_camera_angle) * 900 
+        cam_y = math.sin(rad_camera_angle) * 900
+        cam_z = camera_z_axis_position
+
+        gluLookAt(cam_x, cam_y, cam_z,
+                0, 0, 0,
+                0, 0, 1)
+        
+    elif view_mode==1: #TPP view 
+        Rad_Player_face_angle = math.radians(Player_face_angle)
+        fx = math.cos(Rad_Player_face_angle)
+        fy = math.sin(Rad_Player_face_angle)
+
+        # Camera Postion behind the player
+        cam_x = player_x - fx * 75
+        cam_y = player_y - fy * 75
+        cam_z = 280
+
+        #View at forward position
+        look_x = player_x + fx * 200
+        look_y = player_y + fy * 200
+        look_z = 120
+
+        gluLookAt(cam_x, cam_y, cam_z,
+                look_x, look_y, look_z,
+                0, 0, 1)
+        
+    else: #Top View
+         gluLookAt(0, 0, 1300,
+                  0, 0, 0,
+                  0, 1, 0)
 
 
-def idle():
-    """
-    Idle function that runs continuously:
-    - Triggers screen redraw for real-time updates.
-    """
-    # Ensure the screen updates with the latest changes
-    glutPostRedisplay()
 
 
 def showScreen():
@@ -165,7 +224,7 @@ def showScreen():
     # Clear color and depth buffers
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()  # Reset modelview matrix
-    glViewport(0, 0, 1000, 800)  # Set viewport size
+    glViewport(0, 0, window_width,window_height)  # Set viewport size
 
     setupCamera()  # Configure camera perspective
 
@@ -217,7 +276,7 @@ def main():
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)  # Double buffering, RGB color, depth test
     glutInitWindowSize(window_width, window_height)  # Window size
-    glutInitWindowPosition(0, 0)  # Window position
+    glutInitWindowPosition(150, 0)  # Window position
     glutCreateWindow(b"Defend The Tower")  # Create the window
 
     glutDisplayFunc(showScreen)  # Register display function
