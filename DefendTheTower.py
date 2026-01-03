@@ -19,20 +19,29 @@ camera_angle=0
 view_mode=0
 first_person_mode=False
 
+# Arena Parameter
+GRID_LENGTH =1000
+
 #Player Variable
 player_x=800
 player_y=0
 Player_face_angle=180
 
+player_min_position=-GRID_LENGTH+50
+player_max_postion=GRID_LENGTH-50
+
  # Field of view
 fovY = 120 
 
-# Arena Parameter
-GRID_LENGTH =1000  
+  
 
+#Tower
+Tower_max_HP=20
+Tower_Current_HP=20
 #Game parameter
 Game_over=False
 
+#Supporting Functions
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glColor3f(1,1,1)
     glMatrixMode(GL_PROJECTION)
@@ -58,6 +67,11 @@ def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
 
+def collide_with_tower(x, y):
+    dist = math.sqrt(x*x + y*y)
+    return dist < (70 + 35) #Tower Radius , Player Radius
+
+
 # Drawing Arena
 def draw_outer_full_ground(): 
     x = -GRID_LENGTH * 4
@@ -67,8 +81,9 @@ def draw_outer_full_ground():
         col = 0
         while y < GRID_LENGTH * 4:
             height =((x+y)%200)/50
+            # height = (x % 200) / 50
 
-            if ((row + col) // 2) % 2 == 0:
+            if row % 2 == 0:
                 glColor3f(0.30, 0.18, 0.08)   # very dark soil
             else:
                 glColor3f(0.70, 0.55, 0.35)   # light dry soil
@@ -199,25 +214,78 @@ def draw_player():
 
     glPopMatrix()
 
+#Tower
+def draw_Tower():
+    health_ratio = Tower_Current_HP / Tower_max_HP
+
+    tower_height = health_ratio * 700  #Max Height =700
+
+    scale_z = tower_height / 70 # Cube height,width
+
+    #Tower
+    glPushMatrix()
+    glTranslatef(0, 0, tower_height / 2)
+    glScalef(1.6, 1.6, scale_z)
+    glColor3f(1.0, 0.85, 0.1)
+    glutSolidCube(70)
+    glPopMatrix()
+
+    # Sphere of on the Top
+    glPushMatrix()
+    glTranslatef(0, 0, tower_height)
+    glColor3f(0.95, 0.95, 0.95)
+    gluSphere(gluNewQuadric(), 35, 16, 16)
+    glPopMatrix()
+
 
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
     """
-    # # Move forward (W key)
-    # if key == b'w':  
+    global view_mode,Game_over,Player_face_angle,player_x,player_y
+
+    if Game_over:
+        glutPostRedisplay()
+        return
+     # # Move forward (W key)
+    if key == b'w':
+        dx= math.cos(math.radians(Player_face_angle))
+        dy=math.sin(math.radians(Player_face_angle))
+        prevx=player_x
+        player_x+=dx*30
+        if player_min_position>player_x or player_x>player_max_postion or collide_with_tower(player_x,player_y):
+            player_x=prevx
+        prevy=player_y
+        player_y+=dy*30
+        if player_min_position>player_y or player_y>player_max_postion or collide_with_tower(player_x,player_y):
+            player_y=prevy
+
 
     # # Move backward (S key)
-    # if key == b's':
+    if key == b's':
+        dx= math.cos(math.radians(Player_face_angle))
+        dy=math.sin(math.radians(Player_face_angle))
+        prevx=player_x
+        prevy=player_y
+        player_x-=dx*30
+        player_y-=dy*30
+        if player_min_position>player_x or player_x>player_max_postion or collide_with_tower(player_x,player_y):
+            player_x=prevx
+        if player_min_position>player_y or player_y>player_max_postion or collide_with_tower(player_x,player_y):
+            player_y=prevy
 
     # # Rotate gun left (A key)
-    # if key == b'a':
+    if key == b'a':
+        Player_face_angle=(Player_face_angle+5)%360
 
     # # Rotate gun right (D key)
-    # if key == b'd':
-
-    # # Toggle cheat mode (C key)
-    # if key == b'c':
+    if key == b'd':
+        Player_face_angle=(Player_face_angle-5)%360
+    # # Toggle Cemera View
+    if key == b'c':
+        view_mode = (view_mode + 1) % 3
+        glutPostRedisplay()
+        return
 
     # # Toggle cheat vision (V key)
     # if key == b'v':
@@ -230,35 +298,34 @@ def specialKeyListener(key, x, y):
     """
     Handles special key inputs (arrow keys) for adjusting the camera angle and height.
     """
-    global camera_pos
-    x, y, z = camera_pos
-    # Move camera up (UP arrow key)
-    # if key == GLUT_KEY_UP:
+    global camera_angle, camera_z_axis_position
 
-    # # Move camera down (DOWN arrow key)
-    # if key == GLUT_KEY_DOWN:
-
-    # moving camera left (LEFT arrow key)
     if key == GLUT_KEY_LEFT:
-        x -= 1  # Small angle decrement for smooth movement
+        camera_angle -= 5
+    elif key == GLUT_KEY_RIGHT:
+        camera_angle += 5
+    elif key == GLUT_KEY_UP:
+        camera_z_axis_position += 5
+    elif key == GLUT_KEY_DOWN:
+        camera_z_axis_position -= 5
 
-    # moving camera right (RIGHT arrow key)
-    if key == GLUT_KEY_RIGHT:
-        x += 1  # Small angle increment for smooth movement
-
-    camera_pos = (x, y, z)
-
+    camera_z_axis_position=min(max(camera_z_axis_position,200),1000)
+    glutPostRedisplay()
 
 def mouseListener(button, state, x, y):
     """
     Handles mouse inputs for firing bullets (left click) and toggling camera mode (right click).
     """
-        # # Left mouse button fires a bullet
-        # if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
+    global first_person_mode
+    if state != GLUT_DOWN:
+        return
+    if button == GLUT_LEFT_BUTTON:
+        pass
+        # bullet_fire()
+    elif button == GLUT_RIGHT_BUTTON:
+        first_person_mode= not first_person_mode
 
-        # # Right mouse button toggles camera tracking mode
-        # if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
-
+    glutPostRedisplay()
 
 
 
@@ -354,6 +421,7 @@ def showScreen():
     #Environment Setup
     draw_outer_full_ground()
     draw_arena()
+    draw_Tower()
 
     #player
     draw_player()
