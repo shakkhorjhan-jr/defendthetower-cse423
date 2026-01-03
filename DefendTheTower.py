@@ -4,7 +4,9 @@ from OpenGL.GLU import *
 
 import math 
 import random
+
 import time
+Starting_Time=time.time()
 
 #Widow Size
 window_width=1000
@@ -22,10 +24,12 @@ player_x=0
 player_y=-350
 Player_face_angle=90
 
+ # Field of view
+fovY = 120 
 
-fovY = 120  # Field of view
-GRID_LENGTH = 600  # Length of grid lines
-rand_var = 423
+# Arena Parameter
+GRID_LENGTH =1000  
+
 
 
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
@@ -53,29 +57,82 @@ def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
 
+# Drawing Arena
+def draw_outer_full_ground(): 
+    x = -GRID_LENGTH * 4
+    row = 0
+    while x < GRID_LENGTH * 4:
+        y = -GRID_LENGTH * 4
+        col = 0
+        while y < GRID_LENGTH * 4:
+            height =((x+y)%200)/50
 
-def draw_shapes():
+            if ((row + col) // 2) % 2 == 0:
+                glColor3f(0.30, 0.18, 0.08)   # very dark soil
+            else:
+                glColor3f(0.70, 0.55, 0.35)   # light dry soil
 
-    glPushMatrix()  # Save the current matrix state
-    glColor3f(1, 0, 0)
-    glTranslatef(0, 0, 0)  
-    glutSolidCube(60) # Take cube size as the parameter
-    glTranslatef(0, 0, 100) 
-    glColor3f(0, 1, 0)
-    glutSolidCube(60) 
+            glPushMatrix()
 
-    glColor3f(1, 1, 0)
-    glScalef(2, 2, 2)
-    gluCylinder(gluNewQuadric(), 40, 5, 150, 10, 10)  # parameters are: quadric, base radius, top radius, height, slices, stacks
-    glTranslatef(100, 0, 100) 
-    glRotatef(90, 0, 1, 0)  # parameters are: angle, x, y, z
-    gluCylinder(gluNewQuadric(), 40, 5, 150, 10, 10)
+            glTranslatef(x + 50,y + 50,height / 2)
+            glScalef(100, 100, height)
+            glutSolidCube(1)
 
-    glColor3f(0, 1, 1)
-    glTranslatef(300, 0, 100) 
-    gluSphere(gluNewQuadric(), 80, 10, 10)  # parameters are: quadric, radius, slices, stacks
+            glPopMatrix()
 
-    glPopMatrix()  # Restore the previous matrix state
+            y += 100    
+            col += 1
+        x += 100         
+        row += 1
+
+def draw_arena():
+    glBegin(GL_QUADS)
+    y = -GRID_LENGTH
+    row=0
+    while y < GRID_LENGTH:
+        x = -GRID_LENGTH
+        col=0
+        while x < GRID_LENGTH:
+            if (row + col) % 4 == 0:
+                glColor3f(0.18, 0.55, 0.18)   # dark grass
+            elif (row + col) % 4 == 1:
+                glColor3f(0.28, 0.70, 0.28)   # light grass
+            elif (row + col) % 4 == 2:
+                glColor3f(0.35, 0.30, 0.20)   # mud / dirt
+            else:
+                glColor3f(0.25, 0.65, 0.25)   # mixed grass
+
+            #( 100*100) Size Tile    
+            glVertex3f(x, y, 0)
+            glVertex3f(x + 100, y, 0)
+            glVertex3f(x + 100, y + 100, 0)
+            glVertex3f(x, y + 100, 0)
+            x += 100
+            col += 1
+        y += 100
+        row += 1
+    glEnd()
+
+#SKY
+def Day_Night_Transition():
+    elapsed = time.time() - Starting_Time
+    t = elapsed / 210 #Total Game will run 210s (3.5 min)
+
+    if t > 1:
+        t = 1
+    # Day sky color
+    day = (0.53, 0.81, 0.92)
+    # Night sky color
+    night = (0.05, 0.05, 0.20)
+
+    #Transition
+    r = day[0] * (1 - t) + night[0] * t
+    g = day[1] * (1 - t) + night[1] * t
+    b = day[2] * (1 - t) + night[2] * t
+
+    glClearColor(r, g, b, 1)
+
+
 
 
 def keyboardListener(key, x, y):
@@ -156,7 +213,7 @@ def setupCamera():
     glMatrixMode(GL_PROJECTION)  # Switch to projection matrix mode
     glLoadIdentity()  # Reset the projection matrix
     # Set up a perspective projection (field of view, aspect ratio, near clip, far clip)
-    gluPerspective(fovY,Aspect_Ratio, 0.1, 1500) # Think why aspect ration is 1.25?
+    gluPerspective(fovY,Aspect_Ratio, 0.1, 3000) # Think why aspect ration is 1.25?
     glMatrixMode(GL_MODELVIEW)  # Switch to model-view matrix mode
     glLoadIdentity()  # Reset the model-view matrix
 
@@ -180,8 +237,8 @@ def setupCamera():
 
     if view_mode==0: #View From a broder angle of arena
         rad_camera_angle = math.radians(camera_angle)
-        cam_x = math.cos(rad_camera_angle) * 900 
-        cam_y = math.sin(rad_camera_angle) * 900
+        cam_x = math.cos(rad_camera_angle) * 1300  #x Distance =1300 
+        cam_y = math.sin(rad_camera_angle) * 1300  #y Distance =1300
         cam_z = camera_z_axis_position
 
         gluLookAt(cam_x, cam_y, cam_z,
@@ -222,51 +279,18 @@ def showScreen():
     - Draws everything of the screen
     """
     # Clear color and depth buffers
+    Day_Night_Transition()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()  # Reset modelview matrix
     glViewport(0, 0, window_width,window_height)  # Set viewport size
 
     setupCamera()  # Configure camera perspective
 
-    # Draw a random points
-    glPointSize(20)
-    glBegin(GL_POINTS)
-    glVertex3f(-GRID_LENGTH, GRID_LENGTH, 0)
-    glEnd()
+    #Environment Setup
+    draw_outer_full_ground()
+    draw_arena()
 
-    # Draw the grid (game floor)
-    glBegin(GL_QUADS)
     
-    glColor3f(1, 1, 1)
-    glVertex3f(-GRID_LENGTH, GRID_LENGTH, 0)
-    glVertex3f(0, GRID_LENGTH, 0)
-    glVertex3f(0, 0, 0)
-    glVertex3f(-GRID_LENGTH, 0, 0)
-
-    glVertex3f(GRID_LENGTH, -GRID_LENGTH, 0)
-    glVertex3f(0, -GRID_LENGTH, 0)
-    glVertex3f(0, 0, 0)
-    glVertex3f(GRID_LENGTH, 0, 0)
-
-
-    glColor3f(0.7, 0.5, 0.95)
-    glVertex3f(-GRID_LENGTH, -GRID_LENGTH, 0)
-    glVertex3f(-GRID_LENGTH, 0, 0)
-    glVertex3f(0, 0, 0)
-    glVertex3f(0, -GRID_LENGTH, 0)
-
-    glVertex3f(GRID_LENGTH, GRID_LENGTH, 0)
-    glVertex3f(GRID_LENGTH, 0, 0)
-    glVertex3f(0, 0, 0)
-    glVertex3f(0, GRID_LENGTH, 0)
-    glEnd()
-
-    # Display game info text at a fixed screen position
-    draw_text(10, 770, f"A Random Fixed Position Text")
-    draw_text(10, 740, f"See how the position and variable change?: {rand_var}")
-
-    draw_shapes()
-
     # Swap buffers for smooth rendering (double buffering)
     glutSwapBuffers()
 
