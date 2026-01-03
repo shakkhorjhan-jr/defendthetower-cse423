@@ -20,9 +20,9 @@ view_mode=0
 first_person_mode=False
 
 #Player Variable
-player_x=0
-player_y=-350
-Player_face_angle=90
+player_x=800
+player_y=0
+Player_face_angle=180
 
  # Field of view
 fovY = 120 
@@ -30,7 +30,8 @@ fovY = 120
 # Arena Parameter
 GRID_LENGTH =1000  
 
-
+#Game parameter
+Game_over=False
 
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glColor3f(1,1,1)
@@ -132,7 +133,71 @@ def Day_Night_Transition():
 
     glClearColor(r, g, b, 1)
 
+#Player
+def draw_player():
+    glPushMatrix()
+    glTranslatef(player_x, player_y,0)
+    glRotatef(Player_face_angle, 0, 0, 1)
 
+    if Game_over:
+        glRotatef(90, 1, 0, 0)
+
+    # Legs
+    glColor3f(0.01, 0, 0.1)
+    glPushMatrix()
+    glTranslatef(-18, -14, 0)
+    glScalef(0.45, 0.35, 1.15)
+    gluCylinder(gluNewQuadric(), 10, 40, 50, 10, 10)
+    glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(-18, 14, 0)
+    glScalef(0.45, 0.35, 1.15)
+    gluCylinder(gluNewQuadric(), 10, 40, 50, 10, 10)
+    glPopMatrix()
+
+    # Torso
+    glColor3f(1.0, 0.6, 0.2)
+    glPushMatrix()
+    glTranslatef(0, 0, 105)
+    glScalef(1.05, 0.7, 1.2)
+    glutSolidCube(80)
+    glPopMatrix()
+
+    # Head
+    glColor3f(0.05, 0.05, 0.05)
+    glPushMatrix()
+    glTranslatef(0, 0, 150)
+    gluSphere(gluNewQuadric(), 30, 15, 15)
+    glPopMatrix()
+
+    # Arms
+    skin = (0.85, 0.75, 0.62)
+    glColor3f(*skin)
+    glPushMatrix()
+    glTranslatef(40, 20, 110)
+    glScalef(0.45, 0.35, 1.15)
+    glRotatef(90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 15, 10, 60, 10, 10)
+    glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(40, -25, 110)
+    glScalef(0.45, 0.35, 1.15)
+    glRotatef(90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 15, 10, 60, 10, 10)
+    glPopMatrix()
+
+    #gun cylinder
+    glColor3f(0.6, 0.6, 0.6)
+    glPushMatrix()
+    glTranslatef(40, 0, 120)
+    glScalef(0.45, 0.35, 1.15)
+    glRotatef(90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 18, 6, 190, 10, 10)
+    glPopMatrix()
+
+    glPopMatrix()
 
 
 def keyboardListener(key, x, y):
@@ -289,6 +354,9 @@ def showScreen():
     #Environment Setup
     draw_outer_full_ground()
     draw_arena()
+
+    #player
+    draw_player()
 
     
     # Swap buffers for smooth rendering (double buffering)
