@@ -632,18 +632,20 @@ def bullet_hit_enemy():
 
 #Game Wave Change
 def update_Game_wave_by_time():
-    global Game_wave, Game_Wave_Start_Time
+    global Game_wave, Game_Wave_Start_Time,Player_Max_HP,Player_Current_HP
 
     elapsed = time.time() - Game_Wave_Start_Time
 
     # Wave 1 → 30s
     if Game_wave == 1 and elapsed >= 30:
+        Player_Current_HP=Player_Max_HP
         Game_wave = 2
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
 
     # Wave 2 → 60s
     elif Game_wave == 2 and elapsed >= 90:
+        Player_Current_HP=Player_Max_HP
         Game_wave = 3
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
