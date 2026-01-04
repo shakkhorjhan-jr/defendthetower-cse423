@@ -62,6 +62,8 @@ Game_Max_point=0
 paused=False
 Game_wave=1
 Game_Wave_Start_Time=time.time()
+Game_win=False
+
 #Supporting Functions
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glColor3f(1,1,1)
@@ -262,7 +264,7 @@ def draw_arena():
 #SKY
 def Day_Night_Transition():
     elapsed = time.time() - Starting_Time
-    t = elapsed / 210 #Total Game will run 210s (3.5 min)
+    t = elapsed / 170 #Total Game will run 180s (3 min)
 
     if t > 1:
         t = 1
@@ -632,7 +634,7 @@ def bullet_hit_enemy():
 
 #Game Wave Change
 def update_Game_wave_by_time():
-    global Game_wave, Game_Wave_Start_Time,Player_Max_HP,Player_Current_HP
+    global Game_wave, Game_Wave_Start_Time,Player_Max_HP,Player_Current_HP,Game_win
 
     elapsed = time.time() - Game_Wave_Start_Time
 
@@ -645,10 +647,13 @@ def update_Game_wave_by_time():
 
     # Wave 2 → 60s
     elif Game_wave == 2 and elapsed >= 90:
-        Player_Current_HP=Player_Max_HP
         Game_wave = 3
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
+    elif Game_wave == 3 and elapsed >= 90:
+        if not Game_over:
+            Game_win = True
+    
 
 #Upgarde HP
 def Increase_Player_HP():
