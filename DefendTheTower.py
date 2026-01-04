@@ -44,9 +44,13 @@ Obstacle_last_time=time.time()
 #Tower
 Tower_max_HP=20
 Tower_Current_HP=20
+
+#Enemy
+enemies=[]
+
 #Game parameter
 Game_over=False
-Game_Current_point=20
+Game_Current_point=0
 Game_Max_point=0
 
 #Supporting Functions
@@ -286,7 +290,7 @@ def draw_obstacles():
     for i in obstacles:
         glPushMatrix()
         glTranslatef(i["x"], i["y"], 30)
-        
+
         scale=1
         if i["duration"] < 2.0:
             scale = i["duration"] / 2.0 
@@ -314,6 +318,27 @@ def update_obstacles():
         if i["duration"] <= 0:
             obstacles.remove(i)
 
+#Upgarde HP
+def Increase_Player_HP():
+    global Game_Current_point,Player_Max_HP,Player_Current_HP
+    if Game_Current_point < 2: # Minimum two points needed to buy HP
+        return
+    if Player_Current_HP == Player_Max_HP:
+        return
+    Game_Current_point -= 2
+    Player_Current_HP += 1
+
+def Increase_Tower_HP():
+    global Game_Current_point, Tower_Current_HP, Tower_max_HP
+    if Tower_Current_HP == Tower_max_HP:
+        return
+    if Game_Current_point < 3:
+        return
+    Game_Current_point -= 3
+
+    Tower_Current_HP+=1
+
+  
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
@@ -379,7 +404,15 @@ def keyboardListener(key, x, y):
 
     # # Reset the game if R key is pressed
     # if key == b'r':
+    if key == b'1':
+        Increase_Player_HP()
+        glutPostRedisplay()
+        return
 
+    if key == b'2':
+        Increase_Tower_HP()
+        glutPostRedisplay()
+        return
 
 def specialKeyListener(key, x, y):
     """
