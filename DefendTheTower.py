@@ -647,6 +647,7 @@ def update_Game_wave_by_time():
 
     # Wave 2 → 60s
     elif Game_wave == 2 and elapsed >= 90:
+        Player_Current_HP=Player_Max_HP
         Game_wave = 3
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
