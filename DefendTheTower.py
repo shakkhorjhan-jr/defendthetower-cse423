@@ -46,13 +46,21 @@ Tower_max_HP=20
 Tower_Current_HP=20
 
 #Enemy
-enemies=[]
+# enemies=[]
+enemies = [
+    {"kind": "scout", "x": 300,  "y": 200},
+    {"kind": "brute", "x": -250, "y": 150},
+    {"kind": "boss",  "x": 100,  "y": -300},
+]
+
+enemy_scale_over_time=0
+enemy_shrink_last_time=time.time()
 
 #Game parameter
 Game_over=False
 Game_Current_point=0
 Game_Max_point=0
-
+paused=False
 #Supporting Functions
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glColor3f(1,1,1)
@@ -92,6 +100,54 @@ def obstacle_collision(x, y):
         if math.sqrt(dx*dx + dy*dy) < 90:  #Obstacle width=80 , extra 10
             return True
     return False
+
+#Enemy Draw Supporting
+def draw_humanoid(body_color, head_color, scale=1.0):
+    # Legs
+    glColor3f(*body_color)
+    glPushMatrix()
+    glTranslatef(-18 * scale, -14 * scale, 0)
+    glScalef(0.45 * scale, 0.35 * scale, 1.15 * scale)
+    gluCylinder(gluNewQuadric(), 10, 40, 50, 10, 10)
+    glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(-18 * scale, 14 * scale, 0)
+    glScalef(0.45 * scale, 0.35 * scale, 1.15 * scale)
+    gluCylinder(gluNewQuadric(), 10, 40, 50, 10, 10)
+    glPopMatrix()
+
+    # Torso
+    glColor3f(*body_color)
+    glPushMatrix()
+    glTranslatef(0, 0, 105 * scale)
+    glScalef(1.05 * scale, 0.7 * scale, 1.2 * scale)
+    glutSolidCube(80)
+    glPopMatrix()
+
+    # Head
+    glColor3f(*head_color)
+    glPushMatrix()
+    glTranslatef(0, 0, 150 * scale)
+    gluSphere(gluNewQuadric(), 30 * scale, 15, 15)
+    glPopMatrix()
+
+    # Arms
+    skin = (0.85, 0.75, 0.62)
+    glColor3f(*skin)
+    glPushMatrix()
+    glTranslatef(40 * scale, 20 * scale, 110 * scale)
+    glScalef(0.45 * scale, 0.35 * scale, 1.15 * scale)
+    glRotatef(90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 15, 10, 60, 10, 10)
+    glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(40 * scale, -25 * scale, 110 * scale)
+    glScalef(0.45 * scale, 0.35 * scale, 1.15 * scale)
+    glRotatef(90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 15, 10, 60, 10, 10)
+    glPopMatrix()
 
 # Drawing Arena
 def draw_outer_full_ground(): 
@@ -318,6 +374,31 @@ def update_obstacles():
         if i["duration"] <= 0:
             obstacles.remove(i)
 
+#Enemy
+def draw_enemy():
+    for e in enemies:
+        s = 1.0 + 0.08 * math.sin(enemy_scale_over_time * 3.0)
+        glPushMatrix()
+        glTranslatef(e["x"], e["y"], 0)
+
+        if e["kind"] == "scout":
+            body = (0.9, 0.2, 0.2)   # red
+            head = (0.05, 0.05, 0.05)
+            scale = 0.9 * s
+        elif e["kind"] == "brute":
+            body = (0.2, 0.7, 0.7)   # cyan
+            head = (0.05, 0.05, 0.05)
+            scale = 1.1 * s
+        else:
+            body = (0.6, 0.0, 0.8)   # purple boss
+            head = (0.1, 0.1, 0.1)
+            scale = 1.25 * s
+
+        draw_humanoid(body_color=body, head_color=head, scale=scale)
+        glPopMatrix()
+
+
+
 #Upgarde HP
 def Increase_Player_HP():
     global Game_Current_point,Player_Max_HP,Player_Current_HP
@@ -455,6 +536,18 @@ def idle():
     - Triggers screen redraw for real-time updates.
     """
     # Ensure the screen updates with the latest changes
+    global enemy_shrink_last_time, enemy_scale_over_time
+
+    now = time.time()
+    if enemy_shrink_last_time == 0.0:
+        enemy_shrink_last_time = now
+
+    dt = now - enemy_shrink_last_time
+    enemy_shrink_last_time = now
+    dt = min(max(dt, 0.0), 0.05)
+
+    if not paused and (not Game_over):
+        enemy_scale_over_time += dt
     update_obstacles()
     glutPostRedisplay()
 
@@ -542,11 +635,12 @@ def showScreen():
     #Environment Setup
     draw_outer_full_ground()
     draw_arena()
-    draw_Tower()
     draw_obstacles()
 
-    #player
+    #Characters
     draw_player()
+    draw_enemy()
+    draw_Tower()
 
     
     # Swap buffers for smooth rendering (double buffering)
