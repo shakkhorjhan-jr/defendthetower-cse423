@@ -30,16 +30,24 @@ Player_face_angle=180
 player_min_position=-GRID_LENGTH+50
 player_max_postion=GRID_LENGTH-50
 
+Player_Current_HP=10
+Player_Max_HP=10
+
  # Field of view
 fovY = 120 
 
-  
+#Obstacle
+obstacles = []
+build_mode = "wall"
+Obstacle_last_time=time.time()
 
 #Tower
 Tower_max_HP=20
 Tower_Current_HP=20
 #Game parameter
 Game_over=False
+Game_Current_point=20
+Game_Max_point=0
 
 #Supporting Functions
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
@@ -67,10 +75,19 @@ def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
 
+#movement Supporting
 def collide_with_tower(x, y):
     dist = math.sqrt(x*x + y*y)
     return dist < (70 + 35) #Tower Radius , Player Radius
 
+#Supporting Obstacle 
+def obstacle_collision(x, y):   
+    for ob in obstacles:
+        dx = x - ob["x"]
+        dy = y - ob["y"]
+        if math.sqrt(dx*dx + dy*dy) < 90:  #Obstacle width=80 , extra 10
+            return True
+    return False
 
 # Drawing Arena
 def draw_outer_full_ground(): 
@@ -237,12 +254,71 @@ def draw_Tower():
     gluSphere(gluNewQuadric(), 35, 16, 16)
     glPopMatrix()
 
+#Obstacle
+def place_obstacle():
+    global Game_Current_point,build_mode,obstacles
+
+    if Game_Current_point<5:
+        return
+    
+    Rad_Player_face_angle = math.radians(Player_face_angle)
+    fx = math.cos(Rad_Player_face_angle)
+    fy = math.sin(Rad_Player_face_angle)
+
+    x = player_x + fx * 120  #Place the obstacle
+    y = player_y + fy * 120  
+
+    #Check if it is near to tower or not
+    
+
+    # Check if overlap another obstacle
+    if obstacle_collision(x, y):
+        return
+    
+    Game_Current_point-=5
+    obstacles.append({
+        "type": build_mode,
+        "x": x,
+        "y": y,
+        "duration":10 })
+    
+def draw_obstacles():
+    for i in obstacles:
+        glPushMatrix()
+        glTranslatef(i["x"], i["y"], 30)
+        
+        scale=1
+        if i["duration"] < 2.0:
+            scale = i["duration"] / 2.0 
+        glScalef(scale, scale, scale)
+
+        if i["type"] == "wall":
+            glColor3f(0.4, 0.4, 0.4)
+            glutSolidCube(80)
+        else:
+            glColor3f(0.9, 0.1, 0.1)
+            gluCylinder(gluNewQuadric(), 30, 0, 70, 10, 10)
+
+        glPopMatrix()
+
+def update_obstacles():
+    global obstacles, Obstacle_last_time
+
+    current_time = time.time()
+    dt = current_time - Obstacle_last_time
+    Obstacle_last_time = current_time
+
+    for i in obstacles[:]:  # copy list of obstacle
+        i["duration"] -= dt
+
+        if i["duration"] <= 0:
+            obstacles.remove(i)
 
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
     """
-    global view_mode,Game_over,Player_face_angle,player_x,player_y
+    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode
 
     if Game_over:
         glutPostRedisplay()
@@ -253,11 +329,11 @@ def keyboardListener(key, x, y):
         dy=math.sin(math.radians(Player_face_angle))
         prevx=player_x
         player_x+=dx*30
-        if player_min_position>player_x or player_x>player_max_postion or collide_with_tower(player_x,player_y):
+        if player_min_position>player_x or player_x>player_max_postion or collide_with_tower(player_x,player_y) or obstacle_collision(player_x, player_y):
             player_x=prevx
         prevy=player_y
         player_y+=dy*30
-        if player_min_position>player_y or player_y>player_max_postion or collide_with_tower(player_x,player_y):
+        if player_min_position>player_y or player_y>player_max_postion or collide_with_tower(player_x,player_y) or obstacle_collision(player_x, player_y):
             player_y=prevy
 
 
@@ -269,9 +345,9 @@ def keyboardListener(key, x, y):
         prevy=player_y
         player_x-=dx*30
         player_y-=dy*30
-        if player_min_position>player_x or player_x>player_max_postion or collide_with_tower(player_x,player_y):
+        if player_min_position>player_x or player_x>player_max_postion or collide_with_tower(player_x,player_y) or obstacle_collision(player_x, player_y):
             player_x=prevx
-        if player_min_position>player_y or player_y>player_max_postion or collide_with_tower(player_x,player_y):
+        if player_min_position>player_y or player_y>player_max_postion or collide_with_tower(player_x,player_y) or obstacle_collision(player_x, player_y):
             player_y=prevy
 
     # # Rotate gun left (A key)
@@ -286,7 +362,18 @@ def keyboardListener(key, x, y):
         view_mode = (view_mode + 1) % 3
         glutPostRedisplay()
         return
-
+    
+    if key == b't':
+        if build_mode == "wall" :
+             build_mode = "spike"
+        else:
+            build_mode="wall"
+        return
+    
+    if key == b'e':
+        place_obstacle()
+        glutPostRedisplay()
+        return
     # # Toggle cheat vision (V key)
     # if key == b'v':
 
@@ -335,6 +422,7 @@ def idle():
     - Triggers screen redraw for real-time updates.
     """
     # Ensure the screen updates with the latest changes
+    update_obstacles()
     glutPostRedisplay()
 
 def setupCamera():
@@ -422,6 +510,7 @@ def showScreen():
     draw_outer_full_ground()
     draw_arena()
     draw_Tower()
+    draw_obstacles()
 
     #player
     draw_player()
