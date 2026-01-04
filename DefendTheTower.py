@@ -57,7 +57,7 @@ Current_bullet=30
 
 #Game parameter
 Game_over=False
-Game_Current_point=690
+Game_Current_point=0
 Game_Max_point=0
 paused=False
 Game_wave=1
@@ -728,7 +728,7 @@ def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
     """
-    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode,paused
+    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode,paused,Max_bullet_limit,Current_bullet,Game_Current_point
 
     if key == b'r':
         restrart()
@@ -796,6 +796,20 @@ def keyboardListener(key, x, y):
         place_obstacle()
         glutPostRedisplay()
         return
+    
+    if key == b'm':
+        if Current_bullet==Max_bullet_limit or Game_Current_point<1:
+            glutPostRedisplay()
+            return
+        
+        Game_Current_point-=1
+        Current_bullet+=3
+        if Current_bullet>Max_bullet_limit:
+            Current_bullet=Max_bullet_limit
+        glutPostRedisplay()
+        return
+
+
     # # Toggle cheat vision (V key)
     # if key == b'v':
 
