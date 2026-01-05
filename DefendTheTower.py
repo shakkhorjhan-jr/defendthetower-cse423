@@ -134,18 +134,14 @@ def draw_HUD():
     gap = 25
     top_y = 770
 
-    # -------------------------
     # LEFT TOP: Tower HP, Player HP, Obstacle
-    # -------------------------
     lx = 10
     if not Game_win and not Game_over:
         draw_text(lx, top_y,         f"Tower HP: {Tower_Current_HP}/{Tower_max_HP}")
         draw_text(lx, top_y-gap,     f"Player HP: {Player_Current_HP}/{Player_Max_HP}")
         draw_text(lx, top_y-2*gap,   f"Obstacle: {build_mode.capitalize()}")
 
-    # -------------------------
     # MIDDLE TOP: Wave, Time (countdown), Eliminated, Placed
-    # -------------------------
     mx = 450
     if not Game_win and not Game_over:
         draw_text(mx+15, top_y, f"Round: {Game_wave}")
@@ -181,17 +177,13 @@ def draw_HUD():
     if time.time() < Placed_show_until:
         draw_text(mx, top_y-3*gap, Placed_message)
 
-    # -------------------------
     # RIGHT TOP: Points, Ammo
-    # -------------------------
     rx = 780
     if not Game_win and not Game_over:
         draw_text(rx+15, top_y,         f"Points: {Game_Current_point}")
         draw_text(rx, top_y-gap,     f"Ammo: {Current_bullet}/{Max_bullet_limit}")
 
-    # -------------------------
     # CENTER SCREEN: Win / Loss + Max points
-    # -------------------------
     if Game_over:
         draw_text_red(mx, top_y, "You loss!")
         draw_text(mx, top_y-gap, f"Points = {Game_Max_point}")
