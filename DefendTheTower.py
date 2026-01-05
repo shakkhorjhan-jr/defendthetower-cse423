@@ -23,7 +23,7 @@ first_person_mode=False
 GRID_LENGTH =1000
 
 #Player Variable
-player_x=800
+player_x=500
 player_y=0
 Player_face_angle=180
 
@@ -46,21 +46,24 @@ Tower_max_HP=20
 Tower_Current_HP=20
 
 #Enemy
-# enemies=[]
-enemies = [
-    {"kind": "scout", "x": 300,  "y": 200},
-    {"kind": "brute", "x": -250, "y": 150},
-    {"kind": "boss",  "x": 100,  "y": -300},
-]
-
+enemies=[]
 enemy_scale_over_time=0
 enemy_shrink_last_time=time.time()
+
+#Bullet
+bullets=[]
+Max_bullet_limit=30
+Current_bullet=30
 
 #Game parameter
 Game_over=False
 Game_Current_point=0
 Game_Max_point=0
 paused=False
+Game_wave=1
+Game_Wave_Start_Time=time.time()
+Game_win=False
+
 #Supporting Functions
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glColor3f(1,1,1)
@@ -90,7 +93,7 @@ def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
 #movement Supporting
 def collide_with_tower(x, y):
     dist = math.sqrt(x*x + y*y)
-    return dist < (70 + 35) #Tower Radius , Player Radius
+    return dist < (70 +100) #Tower Radius , Player Radius
 
 #Supporting Obstacle 
 def obstacle_collision(x, y):   
@@ -98,8 +101,8 @@ def obstacle_collision(x, y):
         dx = x - ob["x"]
         dy = y - ob["y"]
         if math.sqrt(dx*dx + dy*dy) < 90:  #Obstacle width=80 , extra 10
-            return True
-    return False
+            return ob
+    return None
 
 #Enemy Draw Supporting
 def draw_humanoid(body_color, head_color, scale=1.0):
@@ -149,6 +152,58 @@ def draw_humanoid(body_color, head_color, scale=1.0):
     gluCylinder(gluNewQuadric(), 15, 10, 60, 10, 10)
     glPopMatrix()
 
+def enemy_spawn_position():
+    margin = 80
+    side = random.randint(0, 3)
+
+    if side == 0:
+        x = -GRID_LENGTH + margin
+        y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+    elif side == 1:
+        x = GRID_LENGTH - margin
+        y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+    elif side == 2:
+        x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        y = -GRID_LENGTH + margin
+    else:
+        x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        y = GRID_LENGTH - margin
+
+    return x, y
+
+def create_enemies_list(kind,target):
+    x, y = enemy_spawn_position()
+    if kind == "scout":
+        return {
+            "kind": "scout",
+            "x": x,
+            "y": y,
+            "hp": 1,
+            "speed": 45,
+            "target":target
+            }
+
+
+    if kind == "brute":
+        return {
+            "kind": "brute",
+            "x": x,
+            "y": y,
+            "hp": 2,
+            "speed": 20,
+            "target":target
+        }
+
+    else:
+        return {
+            "kind": "boss",
+            "x": x,
+            "y": y,
+            "hp": 5,
+            "speed": 15,
+            "target":"Tower"
+        }
+
 # Drawing Arena
 def draw_outer_full_ground(): 
     x = -GRID_LENGTH * 4
@@ -161,14 +216,14 @@ def draw_outer_full_ground():
             # height = (x % 200) / 50
 
             if row % 2 == 0:
-                glColor3f(0.30, 0.18, 0.08)   # very dark soil
+                glColor3f(0.45, 0.35, 0.25)   # dark soil
             else:
                 glColor3f(0.70, 0.55, 0.35)   # light dry soil
 
             glPushMatrix()
 
             glTranslatef(x + 50,y + 50,height / 2)
-            glScalef(100, 100, height)
+            glScalef(200, 200, height)
             glutSolidCube(1)
 
             glPopMatrix()
@@ -209,7 +264,7 @@ def draw_arena():
 #SKY
 def Day_Night_Transition():
     elapsed = time.time() - Starting_Time
-    t = elapsed / 210 #Total Game will run 210s (3.5 min)
+    t = elapsed / 170 #Total Game will run 180s (3 min)
 
     if t > 1:
         t = 1
@@ -375,11 +430,51 @@ def update_obstacles():
             obstacles.remove(i)
 
 #Enemy
+def spawn_enemy_per_wave():
+    global Game_wave,enemies
+    if Game_wave==1:
+        enemies=[]
+        for i in range(4):
+            enemies.append(create_enemies_list("scout","Tower"))
+        enemies.append(create_enemies_list("scout","Player"))
+
+    elif Game_wave==2:
+        enemies=[]
+        for i in range(5):
+            enemies.append(create_enemies_list("scout","Tower"))
+        for i in range(2):
+            enemies.append(create_enemies_list("scout","Player"))
+        
+        for i in range(2):
+            enemies.append(create_enemies_list("brute","Tower"))
+        for i in range(1):
+            enemies.append(create_enemies_list("brute","Player"))
+
+    elif Game_wave==3:
+        enemies=[]
+        for i in range(7):
+            enemies.append(create_enemies_list("scout","Tower"))
+        for i in range(3):
+            enemies.append(create_enemies_list("scout","Player"))
+        
+        for i in range(3):
+            enemies.append(create_enemies_list("brute","Tower"))
+        for i in range(2):
+            enemies.append(create_enemies_list("brute","Player"))
+        
+
 def draw_enemy():
     for e in enemies:
         s = 1.0 + 0.08 * math.sin(enemy_scale_over_time * 3.0)
         glPushMatrix()
         glTranslatef(e["x"], e["y"], 0)
+
+        if e["target"]=="Tower":
+            ang = math.degrees(math.atan2(-e["y"], -e["x"]))
+            glRotatef(ang, 0, 0, 1)
+        elif e["target"]=="Player":
+            ang = math.degrees(math.atan2(player_x-e["y"], player_y-e["x"]))
+            glRotatef(ang, 0, 0, 1)
 
         if e["kind"] == "scout":
             body = (0.9, 0.2, 0.2)   # red
@@ -397,7 +492,169 @@ def draw_enemy():
         draw_humanoid(body_color=body, head_color=head, scale=scale)
         glPopMatrix()
 
+def enemy_movement(dt):
+    global Game_Max_point,Game_Current_point,enemies
+    for e in enemies:
+            ex,ey=e["x"],e["y"]
+            if e["target"]=="Tower":
+                dx = 0 - ex
+                dy = 0 - ey
 
+                distance= math.sqrt(dx**2+dy**2)
+                if distance >0.01:
+                    if dx>0:
+                        e["x"]+=(e["speed"]*dt)
+                    else:
+                        e["x"]-=(e["speed"]*dt)
+                    if dy>0:
+                        e["y"]+=(e["speed"]*dt)
+                    else:
+                        e["y"]-=(e["speed"]*dt)
+
+            else:
+                dx = player_x - ex
+                dy = player_y - ey
+
+                distance= math.sqrt(dx**2+dy**2)
+                if distance >0.01:
+                    if dx>0:
+                        e["x"]+=(e["speed"]*dt)
+                    else:
+                        e["x"]-=(e["speed"]*dt)
+                    if dy>0:
+                        e["y"]+=(e["speed"]*dt)
+                    else:
+                        e["y"]-=(e["speed"]*dt)
+            
+            obs=obstacle_collision(e["x"],e["y"])
+
+            #obastacle Check
+            if obs is None:
+                continue
+            if obs["type"]=="wall":
+                e["x"]=ex
+                e["y"]=ey
+                continue
+           
+
+
+
+def enemy_collision():
+    global enemies, Player_Current_HP, Tower_Current_HP, Game_over,Game_Current_point,Game_Max_point
+
+    ENEMY_RADIUS = 30
+    PLAYER_RADIUS = 30
+    TOWER_RADIUS = 70
+
+    for e in enemies[:]:  
+            #colllide with tower
+            dist = math.sqrt(e["x"]**2 + e["y"]**2)
+            if dist < ENEMY_RADIUS + TOWER_RADIUS:
+                Tower_Current_HP -= 1
+                enemies.remove(e)
+                enemies.append(create_enemies_list(e["kind"], e["target"]))
+
+                if Tower_Current_HP <= 0:
+                    Game_over = True
+                break
+
+            #Collide with player
+            dist = math.sqrt(
+                (player_x - e["x"])**2 +
+                (player_y - e["y"])**2
+            )
+
+            if dist < ENEMY_RADIUS + PLAYER_RADIUS:
+                Player_Current_HP -= 1
+                enemies.remove(e)
+                enemies.append(create_enemies_list(e["kind"], e["target"]))
+
+                if Player_Current_HP <= 0:
+                    Game_over = True
+                break
+            
+            obs=obstacle_collision(e["x"],e["y"])
+
+            #obastacle Check  
+            if obs is not None:         
+                if obs["type"]=="spike":
+                    if e["hp"]<=2:
+                            enemies.remove(e)
+                            Game_Max_point+=1
+                            Game_Current_point+=1
+                            enemies.append(create_enemies_list(e["kind"],e["target"]))
+                    
+                    else:
+                            e["hp"]-=2
+
+#Bullet
+def create_bullet_list():
+    global Player_face_angle,Current_bullet
+    if Current_bullet>0:
+        dx= math.cos(math.radians(Player_face_angle))
+        dy=math.sin(math.radians(Player_face_angle))
+        bullet_x=player_x+(dx*150)
+        bullet_y=player_y+(dy*150)
+        bullets.append([bullet_x,bullet_y,dx,dy])
+        Current_bullet-=1
+
+def draw_bullet():
+    for b in bullets:
+        glPushMatrix()
+        glTranslatef(b[0], b[1],110)
+        glColor3f(0.15, 0.15, 0.15)
+        glScalef(12, 12, 12)
+        glutSolidCube(1.0)
+        glPopMatrix()
+
+def bullet_movement(dt):
+    bullet_speed=500
+    for b in bullets[:]:
+            b[0]+=b[2]*(bullet_speed*dt)
+            b[1]+=b[3]*(bullet_speed*dt)
+            
+            if (b[0]<-GRID_LENGTH or b[0] > GRID_LENGTH or b[1] < -GRID_LENGTH or b[1] > GRID_LENGTH):
+                bullets.remove(b)
+
+def bullet_hit_enemy():
+    global Game_Current_point,Game_Max_point
+    for b1 in bullets[:]:
+            for e1 in enemies[:]:
+                dis=math.sqrt((b1[0]-e1["x"])**2 + (b1[1]-e1["y"])**2 )
+                if dis < 30+12: #enemies radi , bullet scale
+                    bullets.remove(b1)
+                    if e1["hp"]==1:
+                        enemies.remove(e1)
+                        Game_Max_point+=1
+                        Game_Current_point+=1
+                        enemies.append(create_enemies_list(e1["kind"],e1["target"]))
+                        break
+                    else:
+                        e1["hp"]-=1
+
+#Game Wave Change
+def update_Game_wave_by_time():
+    global Game_wave, Game_Wave_Start_Time,Player_Max_HP,Player_Current_HP,Game_win
+
+    elapsed = time.time() - Game_Wave_Start_Time
+
+    # Wave 1 → 30s
+    if Game_wave == 1 and elapsed >= 30:
+        Player_Current_HP=Player_Max_HP
+        Game_wave = 2
+        Game_Wave_Start_Time = time.time()
+        spawn_enemy_per_wave()
+
+    # Wave 2 → 60s
+    elif Game_wave == 2 and elapsed >= 90:
+        Player_Current_HP=Player_Max_HP
+        Game_wave = 3
+        Game_Wave_Start_Time = time.time()
+        spawn_enemy_per_wave()
+    elif Game_wave == 3 and elapsed >= 90:
+        if not Game_over:
+            Game_win = True
+    
 
 #Upgarde HP
 def Increase_Player_HP():
@@ -419,14 +676,81 @@ def Increase_Tower_HP():
 
     Tower_Current_HP+=1
 
+#Restart
+def restrart():
+    global camera_z_axis_position,camera_angle,view_mode,first_person_mode
+
+    global player_x,player_y,  Player_face_angle,player_min_position,player_max_postion,Player_Current_HP,Player_Max_HP,RID_LENGTH
+    global obstacles,Obstacle_last_time,build_mode
+    global Tower_max_HP,Tower_Current_HP
+    global enemies,enemy_scale_over_time, enemy_shrink_last_time
+    global bullets ,Max_bullet_limit, Current_bullet
+    global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time
+
+    # Camera-related variables
+    camera_z_axis_position=500
+    camera_angle=0
+    view_mode=0
+    first_person_mode=False
+
+    #Player Variable
+    player_x=500
+    player_y=0
+    Player_face_angle=180
+
+    player_min_position=-GRID_LENGTH+50
+    player_max_postion=GRID_LENGTH-50
+
+    Player_Current_HP=10
+    Player_Max_HP=10
+
+    #Obstacle
+    obstacles = []
+    build_mode = "wall"
+    Obstacle_last_time=time.time()
+
+    #Tower
+    Tower_max_HP=20
+    Tower_Current_HP=20
+
+    #Enemy
+    enemies=[]
+    enemy_scale_over_time=0
+    enemy_shrink_last_time=time.time()
+
+    #Bullet
+    bullets=[]
+    Max_bullet_limit=30
+    Current_bullet=30
+
+    #Game parameter
+    Game_over=False
+    Game_Current_point=690
+    Game_Max_point=0
+    paused=False
+    Game_wave=1
+    Game_Wave_Start_Time=time.time()
+
   
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
     """
-    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode
+    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode,paused,Max_bullet_limit,Current_bullet,Game_Current_point
 
+    if key == b'r':
+        restrart()
+        spawn_enemy_per_wave()
+        glutPostRedisplay()
+        return
     if Game_over:
+        glutPostRedisplay()
+        return
+    if key == b' ':
+        paused= not paused
+        glutPostRedisplay()
+        return
+    if paused:
         glutPostRedisplay()
         return
      # # Move forward (W key)
@@ -480,6 +804,20 @@ def keyboardListener(key, x, y):
         place_obstacle()
         glutPostRedisplay()
         return
+    
+    if key == b'm':
+        if Current_bullet==Max_bullet_limit or Game_Current_point<1:
+            glutPostRedisplay()
+            return
+        
+        Game_Current_point-=1
+        Current_bullet+=3
+        if Current_bullet>Max_bullet_limit:
+            Current_bullet=Max_bullet_limit
+        glutPostRedisplay()
+        return
+
+
     # # Toggle cheat vision (V key)
     # if key == b'v':
 
@@ -494,6 +832,8 @@ def keyboardListener(key, x, y):
         Increase_Tower_HP()
         glutPostRedisplay()
         return
+    
+    
 
 def specialKeyListener(key, x, y):
     """
@@ -521,8 +861,9 @@ def mouseListener(button, state, x, y):
     if state != GLUT_DOWN:
         return
     if button == GLUT_LEFT_BUTTON:
-        pass
-        # bullet_fire()
+        if not Game_over:
+            create_bullet_list()
+
     elif button == GLUT_RIGHT_BUTTON:
         first_person_mode= not first_person_mode
 
@@ -546,8 +887,15 @@ def idle():
     enemy_shrink_last_time = now
     dt = min(max(dt, 0.0), 0.05)
 
-    if not paused and (not Game_over):
+    if not paused and not Game_over :
         enemy_scale_over_time += dt
+        bullet_movement(dt)
+        enemy_movement(dt)
+        enemy_collision()
+        bullet_hit_enemy()
+
+
+    update_Game_wave_by_time()
     update_obstacles()
     glutPostRedisplay()
 
@@ -635,12 +983,13 @@ def showScreen():
     #Environment Setup
     draw_outer_full_ground()
     draw_arena()
-    draw_Tower()
     draw_obstacles()
 
     #Characters
-    draw_player()
+    draw_Tower()
     draw_enemy()
+    draw_player()
+    draw_bullet()
 
     
     # Swap buffers for smooth rendering (double buffering)
@@ -654,6 +1003,9 @@ def main():
     glutInitWindowSize(window_width, window_height)  # Window size
     glutInitWindowPosition(150, 0)  # Window position
     glutCreateWindow(b"Defend The Tower")  # Create the window
+
+    #Initialize enemy
+    spawn_enemy_per_wave()
 
     glutDisplayFunc(showScreen)  # Register display function
     glutKeyboardFunc(keyboardListener)  # Register keyboard listener
