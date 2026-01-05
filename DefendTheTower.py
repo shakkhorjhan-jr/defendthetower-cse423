@@ -139,9 +139,14 @@ def draw_HUD():
     draw_text(x, y-3*gap,   f"Player HP: {Player_Current_HP}/{Player_Max_HP}")
     draw_text(x, y-4*gap,   f"Ammo: {Current_bullet}/{Max_bullet_limit}")
 
+    if hack_freeze_enemies:
+        draw_text_red(x, y-5*gap, "HACK MODE ON")
     # Eliminated message (Left corner, below HUD)
     if time.time() < Eliminated_show_until:
-        draw_text_red(x, y-5*gap, "Eliminated")
+        draw_text_red(x, y-6*gap, "Enemy Down!")
+
+
+    
 #movement Supporting
 def collide_with_tower(x, y):
     dist = math.sqrt(x*x + y*y)
@@ -810,12 +815,13 @@ def restrart():
     Game_Wave_Start_Time=time.time()
     Eliminated_show_until = 0.0
 
-pause_start_time=0.0  
+pause_start_time=0.0 
+hack_freeze_enemies=False   # when True, enemies cannot move 
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
     """
-    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode,paused,Max_bullet_limit,Current_bullet,Game_Current_point
+    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode,paused,Max_bullet_limit,Current_bullet,Game_Current_point,hack_freeze_enemies
 
     if key == b'r':
         restrart()
@@ -843,6 +849,12 @@ def keyboardListener(key, x, y):
     if paused:
         glutPostRedisplay()
         return
+    
+    if key==b'h':  # Toggle hack freeze
+        hack_freeze_enemies=not hack_freeze_enemies
+        glutPostRedisplay()
+        return
+
      # # Move forward (W key)
     if key == b'w':
         dx= math.cos(math.radians(Player_face_angle))
@@ -985,7 +997,8 @@ def idle():
     if not paused and not Game_over and not Game_win :
         enemy_scale_over_time += dt
         bullet_movement(dt)
-        enemy_movement(dt)
+        if not hack_freeze_enemies:
+            enemy_movement(dt)
         enemy_collision()
         bullet_hit_enemy()
 
