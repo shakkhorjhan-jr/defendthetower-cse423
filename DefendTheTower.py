@@ -473,7 +473,7 @@ def draw_enemy():
             ang = math.degrees(math.atan2(-e["y"], -e["x"]))
             glRotatef(ang, 0, 0, 1)
         elif e["target"]=="Player":
-            ang = math.degrees(math.atan2(player_x-e["y"], player_y-e["x"]))
+            ang = math.degrees(math.atan2(player_y-e["y"], player_x-e["x"]))
             glRotatef(ang, 0, 0, 1)
 
         if e["kind"] == "scout":
@@ -622,16 +622,22 @@ def bullet_hit_enemy():
             for e1 in enemies[:]:
                 dis=math.sqrt((b1[0]-e1["x"])**2 + (b1[1]-e1["y"])**2 )
                 if dis < 30+12: #enemies radi , bullet scale
-                    bullets.remove(b1)
+                    if b1 in bullets:
+                        bullets.remove(b1)
+                    else:
+                        break
                     if e1["hp"]==1:
-                        enemies.remove(e1)
+                        if e1 in enemies:
+                            enemies.remove(e1)
+                        else:
+                            break
                         Game_Max_point+=1
                         Game_Current_point+=1
                         enemies.append(create_enemies_list(e1["kind"],e1["target"]))
                         break
                     else:
                         e1["hp"]-=1
-                    break
+                        break
 
 #Game Wave Change
 def update_Game_wave_by_time():
