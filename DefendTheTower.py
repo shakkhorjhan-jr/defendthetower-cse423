@@ -49,11 +49,16 @@ Tower_Current_HP=20
 enemies=[]
 enemy_scale_over_time=0
 enemy_shrink_last_time=time.time()
+boss_spawn=False
 
 #Bullet
 bullets=[]
 Max_bullet_limit=30
 Current_bullet=30
+#hud
+Game_win=False
+#HUD / Kill Message
+Eliminated_show_until = 0.0   # show "Eliminated" until this time
 
 #Game parameter
 Game_over=False
@@ -90,6 +95,58 @@ def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
 
+
+def draw_text_red(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
+    glColor3f(1,0,0)
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+
+    gluOrtho2D(0, 1000, 0, 800)
+
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+
+    glRasterPos2f(x, y)
+    for ch in text:
+        glutBitmapCharacter(font, ord(ch))
+
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+
+
+def trigger_eliminated_text():
+    global Eliminated_show_until
+    Eliminated_show_until = time.time() + 1.0   # show for 1 second
+
+
+def draw_HUD():
+    # Left corner HUD + eliminated message in left corner
+    # (Uses only the same functions you already use: glColor3f, glMatrixMode, glPushMatrix, glPopMatrix, glLoadIdentity, gluOrtho2D)
+
+    x = 10
+    y = 770
+    gap = 25
+
+    # HUD (Top-left)
+    draw_text(x, y,         f"Core HP: {Tower_Current_HP}/{Tower_max_HP}")
+    draw_text(x, y-gap,     f"Wave: {Game_wave}")
+    draw_text(x, y-2*gap,   f"Points: {Game_Current_point}")
+    draw_text(x, y-3*gap,   f"Player HP: {Player_Current_HP}/{Player_Max_HP}")
+    draw_text(x, y-4*gap,   f"Ammo: {Current_bullet}/{Max_bullet_limit}")
+
+    if hack_freeze_enemies:
+        draw_text_red(x, y-5*gap, "HACK MODE ON")
+    # Eliminated message (Left corner, below HUD)
+    if time.time() < Eliminated_show_until:
+        draw_text_red(x, y-6*gap, "Enemy Down!")
+
+
+    
 #movement Supporting
 def collide_with_tower(x, y):
     dist = math.sqrt(x*x + y*y)
@@ -190,7 +247,7 @@ def create_enemies_list(kind,target):
             "x": x,
             "y": y,
             "hp": 2,
-            "speed": 20,
+            "speed": 30,
             "target":target
         }
 
@@ -200,8 +257,8 @@ def create_enemies_list(kind,target):
             "x": x,
             "y": y,
             "hp": 5,
-            "speed": 15,
-            "target":"Tower"
+            "speed": 25,
+            "target":target
         }
 
 # Drawing Arena
@@ -431,7 +488,7 @@ def update_obstacles():
 
 #Enemy
 def spawn_enemy_per_wave():
-    global Game_wave,enemies
+    global Game_wave,enemies,Game_Wave_Start_Time,boss_spawn
     if Game_wave==1:
         enemies=[]
         for i in range(4):
@@ -461,6 +518,8 @@ def spawn_enemy_per_wave():
             enemies.append(create_enemies_list("brute","Tower"))
         for i in range(2):
             enemies.append(create_enemies_list("brute","Player"))
+
+        
         
 
 def draw_enemy():
@@ -473,7 +532,7 @@ def draw_enemy():
             ang = math.degrees(math.atan2(-e["y"], -e["x"]))
             glRotatef(ang, 0, 0, 1)
         elif e["target"]=="Player":
-            ang = math.degrees(math.atan2(player_x-e["y"], player_y-e["x"]))
+            ang = math.degrees(math.atan2(player_y-e["y"], player_x-e["x"]))
             glRotatef(ang, 0, 0, 1)
 
         if e["kind"] == "scout":
@@ -579,13 +638,19 @@ def enemy_collision():
             if obs is not None:         
                 if obs["type"]=="spike":
                     if e["hp"]<=2:
-                            enemies.remove(e)
-                            Game_Max_point+=1
-                            Game_Current_point+=1
-                            enemies.append(create_enemies_list(e["kind"],e["target"]))
+                        enemies.remove(e)
+                        Game_Max_point+=1
+                        Game_Current_point+=1
+                        trigger_eliminated_text()
+                        enemies.append(create_enemies_list(e["kind"],e["target"]))
                     
                     else:
+                        if e["kind"]!="boss":
                             e["hp"]-=2
+                        else:
+                            e["hp"]-=2
+                            obstacles.remove(obs)
+
 
 #Bullet
 def create_bullet_list():
@@ -622,40 +687,57 @@ def bullet_hit_enemy():
             for e1 in enemies[:]:
                 dis=math.sqrt((b1[0]-e1["x"])**2 + (b1[1]-e1["y"])**2 )
                 if dis < 30+12: #enemies radi , bullet scale
-                    bullets.remove(b1)
+                    if b1 in bullets:
+                        bullets.remove(b1)
+                    else:
+                        break
                     if e1["hp"]==1:
-                        enemies.remove(e1)
+                        if e1 in enemies:
+                            enemies.remove(e1)
+                        else:
+                            break
                         Game_Max_point+=1
                         Game_Current_point+=1
+                        trigger_eliminated_text()
                         enemies.append(create_enemies_list(e1["kind"],e1["target"]))
                         break
+
                     else:
                         e1["hp"]-=1
-                    break
+                        break
 
 #Game Wave Change
 def update_Game_wave_by_time():
-    global Game_wave, Game_Wave_Start_Time,Player_Max_HP,Player_Current_HP,Game_win
+    global Game_wave, Game_Wave_Start_Time
+    global Player_Max_HP, Player_Current_HP
+    global Game_win, boss_spawn, enemies
 
     elapsed = time.time() - Game_Wave_Start_Time
 
-    # Wave 1 → 30s
+    # Wave 1 to Wave 2 after 30s
     if Game_wave == 1 and elapsed >= 30:
-        Player_Current_HP=Player_Max_HP
+        Player_Current_HP = Player_Max_HP
         Game_wave = 2
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
 
-    # Wave 2 → 60s
+    # Wave 2 to Wave 3 after 90s
     elif Game_wave == 2 and elapsed >= 60:
-        Player_Current_HP=Player_Max_HP
+        Player_Current_HP = Player_Max_HP
         Game_wave = 3
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
+
+    # Boss spawn in last 45s of Wave 3
+    elif Game_wave == 3 and elapsed >= 45 and not boss_spawn:
+        boss_spawn = True
+        enemies.append(create_enemies_list("boss", "Tower"))
+ 
+
+    # Wave 3 end → Game win
     elif Game_wave == 3 and elapsed >= 90:
         if not Game_over:
             Game_win = True
-    
 
 #Upgarde HP
 def Increase_Player_HP():
@@ -684,10 +766,12 @@ def restrart():
     global player_x,player_y,  Player_face_angle,player_min_position,player_max_postion,Player_Current_HP,Player_Max_HP,RID_LENGTH
     global obstacles,Obstacle_last_time,build_mode
     global Tower_max_HP,Tower_Current_HP
-    global enemies,enemy_scale_over_time, enemy_shrink_last_time
+    global enemies,enemy_scale_over_time, enemy_shrink_last_time,boss_spawn
     global bullets ,Max_bullet_limit, Current_bullet
-    global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time
+    global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time,Game_win
+    global Eliminated_show_until
 
+    
     # Camera-related variables
     Starting_Time=time.time()
     camera_z_axis_position=500
@@ -697,6 +781,7 @@ def restrart():
 
     #Player Variable
     player_x=500
+
     player_y=0
     Player_face_angle=180
 
@@ -719,6 +804,7 @@ def restrart():
     enemies=[]
     enemy_scale_over_time=0
     enemy_shrink_last_time=time.time()
+    boss_spawn=False
 
     #Bullet
     bullets=[]
@@ -727,18 +813,21 @@ def restrart():
 
     #Game parameter
     Game_over=False
-    Game_Current_point=690
+    Game_Current_point=0
     Game_Max_point=0
     paused=False
     Game_wave=1
     Game_Wave_Start_Time=time.time()
+    Eliminated_show_until = 0.0
+    Game_win=False
 
-pause_start_time=0.0  
+pause_start_time=0.0 
+hack_freeze_enemies=False   # when True, enemies cannot move 
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
     """
-    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode,paused,Max_bullet_limit,Current_bullet,Game_Current_point
+    global view_mode,Game_over,Player_face_angle,player_x,player_y,build_mode,paused,Max_bullet_limit,Current_bullet,Game_Current_point,hack_freeze_enemies
 
     if key == b'r':
         restrart()
@@ -766,6 +855,12 @@ def keyboardListener(key, x, y):
     if paused:
         glutPostRedisplay()
         return
+    
+    if key==b'h':  # Toggle hack freeze
+        hack_freeze_enemies=not hack_freeze_enemies
+        glutPostRedisplay()
+        return
+
      # # Move forward (W key)
     if key == b'w':
         dx= math.cos(math.radians(Player_face_angle))
@@ -905,10 +1000,11 @@ def idle():
     enemy_shrink_last_time = now
     dt = min(max(dt, 0.0), 0.05)
 
-    if not paused and not Game_over :
+    if not paused and not Game_over and not Game_win :
         enemy_scale_over_time += dt
         bullet_movement(dt)
-        enemy_movement(dt)
+        if not hack_freeze_enemies:
+            enemy_movement(dt)
         enemy_collision()
         bullet_hit_enemy()
 
@@ -1006,9 +1102,12 @@ def showScreen():
 
     #Characters
     draw_Tower()
-    draw_enemy()
+    if not Game_over and not Game_win:  
+        draw_enemy()
     draw_player()
     draw_bullet()
+    glClear(GL_DEPTH_BUFFER_BIT)  # so HUD text always shows on top (no new GL functions)
+    draw_HUD()
 
     
     # Swap buffers for smooth rendering (double buffering)
