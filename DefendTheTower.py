@@ -59,6 +59,9 @@ Current_bullet=30
 Game_win=False
 #HUD / Kill Message
 Eliminated_show_until = 0.0   # show "Eliminated" until this time
+Placed_show_until = 0.0     # show "Wall placed"/"Spike placed" until this time
+Placed_message = ""         # what text to show
+
 
 #Game parameter
 Game_over=False
@@ -122,28 +125,77 @@ def draw_text_red(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
 def trigger_eliminated_text():
     global Eliminated_show_until
     Eliminated_show_until = time.time() + 1.0   # show for 1 second
-
+def trigger_placed_text(msg):
+    global Placed_show_until, Placed_message
+    Placed_message = msg
+    Placed_show_until = time.time() + 1.0   # show for 1 second
 
 def draw_HUD():
-    # Left corner HUD + eliminated message in left corner
-    # (Uses only the same functions you already use: glColor3f, glMatrixMode, glPushMatrix, glPopMatrix, glLoadIdentity, gluOrtho2D)
-
-    x = 10
-    y = 770
     gap = 25
+    top_y = 770
 
-    # HUD (Top-left)
-    draw_text(x, y,         f"Core HP: {Tower_Current_HP}/{Tower_max_HP}")
-    draw_text(x, y-gap,     f"Wave: {Game_wave}")
-    draw_text(x, y-2*gap,   f"Points: {Game_Current_point}")
-    draw_text(x, y-3*gap,   f"Player HP: {Player_Current_HP}/{Player_Max_HP}")
-    draw_text(x, y-4*gap,   f"Ammo: {Current_bullet}/{Max_bullet_limit}")
+    # LEFT TOP: Tower HP, Player HP, Obstacle
+    lx = 10
+    if not Game_win and not Game_over:
+        draw_text(lx, top_y,         f"Tower HP: {Tower_Current_HP}/{Tower_max_HP}")
+        draw_text(lx, top_y-gap,     f"Player HP: {Player_Current_HP}/{Player_Max_HP}")
+        draw_text(lx, top_y-2*gap,   f"Obstacle: {build_mode.capitalize()}")
 
-    if hack_freeze_enemies:
-        draw_text_red(x, y-5*gap, "HACK MODE ON")
-    # Eliminated message (Left corner, below HUD)
+    # MIDDLE TOP: Wave, Time (countdown), Eliminated, Placed
+    mx = 450
+    if not Game_win and not Game_over:
+        draw_text(mx+15, top_y, f"Round: {Game_wave}")
+
+    # Wave timer durations
+    if Game_wave == 1:
+        wave_duration = 30
+    elif Game_wave == 2:
+        wave_duration = 60
+    else:
+        wave_duration = 90
+
+    # Freeze timer display while paused (uses your existing pause_start_time)
+    now_time = time.time()
+    if paused:
+        now_time = pause_start_time
+
+    elapsed = now_time - Game_Wave_Start_Time
+    remaining = wave_duration - elapsed
+    if remaining < 0:
+        remaining = 0
+
+    # show like 30 -> 0
+    remaining_sec = int(math.ceil(remaining))
+    if not Game_win and not Game_over:
+        draw_text(mx, top_y-gap, f"Time Left: {remaining_sec}")
+
+    # Eliminated (red) below time
     if time.time() < Eliminated_show_until:
-        draw_text_red(x, y-6*gap, "Enemy Down!")
+        draw_text_red(mx+15, top_y-2*gap, "Eliminated")
+
+    # Wall/Spike placed below Eliminated
+    if time.time() < Placed_show_until:
+        draw_text(mx, top_y-3*gap, Placed_message)
+
+    # RIGHT TOP: Points, Ammo
+    rx = 780
+    if not Game_win and not Game_over:
+        draw_text(rx+15, top_y,         f"Points: {Game_Current_point}")
+        draw_text(rx, top_y-gap,     f"Ammo: {Current_bullet}/{Max_bullet_limit}")
+
+    # CENTER SCREEN: Win / Loss + Max points
+    if Game_over:
+        draw_text_red(mx, top_y, "You loss!")
+        draw_text(mx, top_y-gap, f"Points = {Game_Max_point}")
+    elif Game_win:
+        draw_text(mx, top_y, "You win!")
+        draw_text(mx, top_y-gap, f"Points = {Game_Max_point}")
+
+
+
+    if hack_freeze_enemies and not Game_win and not Game_over:
+        draw_text_red(mx-10, top_y-5*gap, "HACK MODE ON")
+    
 
 
     
@@ -446,13 +498,20 @@ def place_obstacle():
     # Check if overlap another obstacle
     if obstacle_collision(x, y):
         return
-    
-    Game_Current_point-=5
+    Game_Current_point -= 5
     obstacles.append({
-        "type": build_mode,
-        "x": x,
-        "y": y,
-        "duration":10 })
+    "type": build_mode,
+    "x": x,
+    "y": y,
+    "duration": 10
+})
+
+    # show message below "Eliminated"
+    if build_mode == "wall":
+        trigger_placed_text("Wall placed")
+    else:
+        trigger_placed_text("Spike placed")
+
     
 def draw_obstacles():
     for i in obstacles:
@@ -678,7 +737,7 @@ def bullet_movement(dt):
             b[0]+=b[2]*(bullet_speed*dt)
             b[1]+=b[3]*(bullet_speed*dt)
             
-            if (b[0]<-GRID_LENGTH or b[0] > GRID_LENGTH or b[1] < -GRID_LENGTH or b[1] > GRID_LENGTH):
+            if (b[0]<-GRID_LENGTH or b[0] > GRID_LENGTH or b[1] < -GRID_LENGTH or b[1] > GRID_LENGTH) or collide_with_tower(b[0], b[1]):
                 bullets.remove(b)
 
 def bullet_hit_enemy():
@@ -721,9 +780,9 @@ def update_Game_wave_by_time():
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
 
-    # Wave 2 to Wave 3 after 90s
+    # Wave 2 → 60s
     elif Game_wave == 2 and elapsed >= 60:
-        Player_Current_HP = Player_Max_HP
+        Player_Current_HP=Player_Max_HP
         Game_wave = 3
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
@@ -770,6 +829,9 @@ def restrart():
     global bullets ,Max_bullet_limit, Current_bullet
     global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time,Game_win
     global Eliminated_show_until
+    global Game_win, Placed_show_until, Placed_message
+    global hack_freeze_enemies
+
 
     
     # Camera-related variables
@@ -819,7 +881,12 @@ def restrart():
     Game_wave=1
     Game_Wave_Start_Time=time.time()
     Eliminated_show_until = 0.0
-    Game_win=False
+    Game_win = False
+    Eliminated_show_until = 0.0
+    Placed_show_until = 0.0
+    Placed_message = ""
+    hack_freeze_enemies=False
+
 
 pause_start_time=0.0 
 hack_freeze_enemies=False   # when True, enemies cannot move 
