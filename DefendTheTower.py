@@ -613,7 +613,7 @@ def bullet_movement(dt):
             b[0]+=b[2]*(bullet_speed*dt)
             b[1]+=b[3]*(bullet_speed*dt)
             
-            if (b[0]<-GRID_LENGTH or b[0] > GRID_LENGTH or b[1] < -GRID_LENGTH or b[1] > GRID_LENGTH):
+            if (b[0]<-GRID_LENGTH or b[0] > GRID_LENGTH or b[1] < -GRID_LENGTH or b[1] > GRID_LENGTH) or collide_with_tower(b[0], b[1]):
                 bullets.remove(b)
 
 def bullet_hit_enemy():
@@ -647,7 +647,7 @@ def update_Game_wave_by_time():
         spawn_enemy_per_wave()
 
     # Wave 2 → 60s
-    elif Game_wave == 2 and elapsed >= 90:
+    elif Game_wave == 2 and elapsed >= 60:
         Player_Current_HP=Player_Max_HP
         Game_wave = 3
         Game_Wave_Start_Time = time.time()
