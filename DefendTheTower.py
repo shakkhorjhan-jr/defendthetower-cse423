@@ -49,6 +49,7 @@ Tower_Current_HP=20
 enemies=[]
 enemy_scale_over_time=0
 enemy_shrink_last_time=time.time()
+boss_spawn=False
 
 #Bullet
 bullets=[]
@@ -241,7 +242,7 @@ def create_enemies_list(kind,target):
             "x": x,
             "y": y,
             "hp": 2,
-            "speed": 20,
+            "speed": 30,
             "target":target
         }
 
@@ -251,8 +252,8 @@ def create_enemies_list(kind,target):
             "x": x,
             "y": y,
             "hp": 5,
-            "speed": 15,
-            "target":"Tower"
+            "speed": 20,
+            "target":target
         }
 
 # Drawing Arena
@@ -482,7 +483,7 @@ def update_obstacles():
 
 #Enemy
 def spawn_enemy_per_wave():
-    global Game_wave,enemies
+    global Game_wave,enemies,Game_Wave_Start_Time,boss_spawn
     if Game_wave==1:
         enemies=[]
         for i in range(4):
@@ -512,6 +513,8 @@ def spawn_enemy_per_wave():
             enemies.append(create_enemies_list("brute","Tower"))
         for i in range(2):
             enemies.append(create_enemies_list("brute","Player"))
+
+        
         
 
 def draw_enemy():
@@ -695,27 +698,36 @@ def bullet_hit_enemy():
 
 #Game Wave Change
 def update_Game_wave_by_time():
-    global Game_wave, Game_Wave_Start_Time,Player_Max_HP,Player_Current_HP,Game_win
+    global Game_wave, Game_Wave_Start_Time
+    global Player_Max_HP, Player_Current_HP
+    global Game_win, boss_spawn, enemies
 
     elapsed = time.time() - Game_Wave_Start_Time
 
-    # Wave 1 → 30s
+    # Wave 1 to Wave 2 after 30s
     if Game_wave == 1 and elapsed >= 30:
-        Player_Current_HP=Player_Max_HP
+        Player_Current_HP = Player_Max_HP
         Game_wave = 2
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
 
-    # Wave 2 → 60s
-    elif Game_wave == 2 and elapsed >= 90:
-        Player_Current_HP=Player_Max_HP
+    # Wave 2 to Wave 3 after 90s
+    elif Game_wave == 2 and elapsed >= 60:
+        Player_Current_HP = Player_Max_HP
         Game_wave = 3
         Game_Wave_Start_Time = time.time()
         spawn_enemy_per_wave()
+
+    # Boss spawn in last 45s of Wave 3
+    elif Game_wave == 3 and elapsed >= 45 and not boss_spawn:
+        boss_spawn = True
+        enemies.append(create_enemies_list("boss", "Tower"))
+ 
+
+    # Wave 3 end → Game win
     elif Game_wave == 3 and elapsed >= 90:
         if not Game_over:
             Game_win = True
-    
 
 #Upgarde HP
 def Increase_Player_HP():
@@ -744,7 +756,7 @@ def restrart():
     global player_x,player_y,  Player_face_angle,player_min_position,player_max_postion,Player_Current_HP,Player_Max_HP,RID_LENGTH
     global obstacles,Obstacle_last_time,build_mode
     global Tower_max_HP,Tower_Current_HP
-    global enemies,enemy_scale_over_time, enemy_shrink_last_time
+    global enemies,enemy_scale_over_time, enemy_shrink_last_time,boss_spawn
     global bullets ,Max_bullet_limit, Current_bullet
     global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time
     global Eliminated_show_until
@@ -782,6 +794,7 @@ def restrart():
     enemies=[]
     enemy_scale_over_time=0
     enemy_shrink_last_time=time.time()
+    boss_spawn=False
 
     #Bullet
     bullets=[]
@@ -969,7 +982,7 @@ def idle():
     enemy_shrink_last_time = now
     dt = min(max(dt, 0.0), 0.05)
 
-    if not paused and not Game_over :
+    if not paused and not Game_over and not Game_win :
         enemy_scale_over_time += dt
         bullet_movement(dt)
         enemy_movement(dt)
