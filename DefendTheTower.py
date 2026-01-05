@@ -257,7 +257,7 @@ def create_enemies_list(kind,target):
             "x": x,
             "y": y,
             "hp": 5,
-            "speed": 20,
+            "speed": 25,
             "target":target
         }
 
@@ -645,7 +645,12 @@ def enemy_collision():
                         enemies.append(create_enemies_list(e["kind"],e["target"]))
                     
                     else:
-                        e["hp"]-=2
+                        if e["kind"]!="boss":
+                            e["hp"]-=2
+                        else:
+                            e["hp"]-=2
+                            obstacles.remove(obs)
+
 
 #Bullet
 def create_bullet_list():
@@ -763,7 +768,7 @@ def restrart():
     global Tower_max_HP,Tower_Current_HP
     global enemies,enemy_scale_over_time, enemy_shrink_last_time,boss_spawn
     global bullets ,Max_bullet_limit, Current_bullet
-    global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time
+    global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time,Game_win
     global Eliminated_show_until
 
     
@@ -814,6 +819,7 @@ def restrart():
     Game_wave=1
     Game_Wave_Start_Time=time.time()
     Eliminated_show_until = 0.0
+    Game_win=False
 
 pause_start_time=0.0 
 hack_freeze_enemies=False   # when True, enemies cannot move 
@@ -1096,7 +1102,8 @@ def showScreen():
 
     #Characters
     draw_Tower()
-    draw_enemy()
+    if not Game_over and not Game_win:  
+        draw_enemy()
     draw_player()
     draw_bullet()
     glClear(GL_DEPTH_BUFFER_BIT)  # so HUD text always shows on top (no new GL functions)
