@@ -54,6 +54,10 @@ enemy_shrink_last_time=time.time()
 bullets=[]
 Max_bullet_limit=30
 Current_bullet=30
+#hud
+Game_win=False
+#HUD / Kill Message
+Eliminated_show_until = 0.0   # show "Eliminated" until this time
 
 #Game parameter
 Game_over=False
@@ -90,6 +94,53 @@ def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
 
+
+def draw_text_red(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
+    glColor3f(1,0,0)
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+
+    gluOrtho2D(0, 1000, 0, 800)
+
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+
+    glRasterPos2f(x, y)
+    for ch in text:
+        glutBitmapCharacter(font, ord(ch))
+
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+
+
+def trigger_eliminated_text():
+    global Eliminated_show_until
+    Eliminated_show_until = time.time() + 1.0   # show for 1 second
+
+
+def draw_HUD():
+    # Left corner HUD + eliminated message in left corner
+    # (Uses only the same functions you already use: glColor3f, glMatrixMode, glPushMatrix, glPopMatrix, glLoadIdentity, gluOrtho2D)
+
+    x = 10
+    y = 770
+    gap = 25
+
+    # HUD (Top-left)
+    draw_text(x, y,         f"Core HP: {Tower_Current_HP}/{Tower_max_HP}")
+    draw_text(x, y-gap,     f"Wave: {Game_wave}")
+    draw_text(x, y-2*gap,   f"Points: {Game_Current_point}")
+    draw_text(x, y-3*gap,   f"Player HP: {Player_Current_HP}/{Player_Max_HP}")
+    draw_text(x, y-4*gap,   f"Ammo: {Current_bullet}/{Max_bullet_limit}")
+
+    # Eliminated message (Left corner, below HUD)
+    if time.time() < Eliminated_show_until:
+        draw_text_red(x, y-5*gap, "Eliminated")
 #movement Supporting
 def collide_with_tower(x, y):
     dist = math.sqrt(x*x + y*y)
@@ -579,13 +630,14 @@ def enemy_collision():
             if obs is not None:         
                 if obs["type"]=="spike":
                     if e["hp"]<=2:
-                            enemies.remove(e)
-                            Game_Max_point+=1
-                            Game_Current_point+=1
-                            enemies.append(create_enemies_list(e["kind"],e["target"]))
+                        enemies.remove(e)
+                        Game_Max_point+=1
+                        Game_Current_point+=1
+                        trigger_eliminated_text()
+                        enemies.append(create_enemies_list(e["kind"],e["target"]))
                     
                     else:
-                            e["hp"]-=2
+                        e["hp"]-=2
 
 #Bullet
 def create_bullet_list():
@@ -633,8 +685,10 @@ def bullet_hit_enemy():
                             break
                         Game_Max_point+=1
                         Game_Current_point+=1
+                        trigger_eliminated_text()
                         enemies.append(create_enemies_list(e1["kind"],e1["target"]))
                         break
+
                     else:
                         e1["hp"]-=1
                         break
@@ -693,7 +747,9 @@ def restrart():
     global enemies,enemy_scale_over_time, enemy_shrink_last_time
     global bullets ,Max_bullet_limit, Current_bullet
     global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time
+    global Eliminated_show_until
 
+    
     # Camera-related variables
     Starting_Time=time.time()
     camera_z_axis_position=500
@@ -703,6 +759,7 @@ def restrart():
 
     #Player Variable
     player_x=500
+
     player_y=0
     Player_face_angle=180
 
@@ -733,11 +790,12 @@ def restrart():
 
     #Game parameter
     Game_over=False
-    Game_Current_point=690
+    Game_Current_point=0
     Game_Max_point=0
     paused=False
     Game_wave=1
     Game_Wave_Start_Time=time.time()
+    Eliminated_show_until = 0.0
 
 pause_start_time=0.0  
 def keyboardListener(key, x, y):
@@ -1015,6 +1073,8 @@ def showScreen():
     draw_enemy()
     draw_player()
     draw_bullet()
+    glClear(GL_DEPTH_BUFFER_BIT)  # so HUD text always shows on top (no new GL functions)
+    draw_HUD()
 
     
     # Swap buffers for smooth rendering (double buffering)
