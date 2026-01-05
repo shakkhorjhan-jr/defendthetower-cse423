@@ -524,7 +524,7 @@ def draw_enemy():
             ang = math.degrees(math.atan2(-e["y"], -e["x"]))
             glRotatef(ang, 0, 0, 1)
         elif e["target"]=="Player":
-            ang = math.degrees(math.atan2(player_x-e["y"], player_y-e["x"]))
+            ang = math.degrees(math.atan2(player_y-e["y"], player_x-e["x"]))
             glRotatef(ang, 0, 0, 1)
 
         if e["kind"] == "scout":
@@ -674,9 +674,15 @@ def bullet_hit_enemy():
             for e1 in enemies[:]:
                 dis=math.sqrt((b1[0]-e1["x"])**2 + (b1[1]-e1["y"])**2 )
                 if dis < 30+12: #enemies radi , bullet scale
-                    bullets.remove(b1)
+                    if b1 in bullets:
+                        bullets.remove(b1)
+                    else:
+                        break
                     if e1["hp"]==1:
-                        enemies.remove(e1)
+                        if e1 in enemies:
+                            enemies.remove(e1)
+                        else:
+                            break
                         Game_Max_point+=1
                         Game_Current_point+=1
                         trigger_eliminated_text()
@@ -684,7 +690,8 @@ def bullet_hit_enemy():
                         break
 
                     else:
-                       e1["hp"]-=1
+                        e1["hp"]-=1
+                        break
 
 #Game Wave Change
 def update_Game_wave_by_time():
@@ -790,7 +797,7 @@ def restrart():
     Game_Wave_Start_Time=time.time()
     Eliminated_show_until = 0.0
 
-  
+pause_start_time=0.0  
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
@@ -806,7 +813,18 @@ def keyboardListener(key, x, y):
         glutPostRedisplay()
         return
     if key == b' ':
-        paused= not paused
+        global pause_start_time,Starting_Time,Game_Wave_Start_Time,Obstacle_last_time,enemy_shrink_last_time
+
+        if not paused:
+            paused=True
+            pause_start_time=time.time()
+        else:
+            paused=False
+            paused_duration=time.time()-pause_start_time
+            Starting_Time+=paused_duration #Freeze sky transition time
+            Game_Wave_Start_Time+=paused_duration #Freeze wave timer so enemies don't spawn instantly
+            Obstacle_last_time+=paused_duration #Freeze obstacle decay so they don't vanish instantly
+            enemy_shrink_last_time+=paused_duration #prevent dt spike in enemy animation timer
         glutPostRedisplay()
         return
     if paused:
@@ -919,6 +937,11 @@ def mouseListener(button, state, x, y):
     global first_person_mode
     if state != GLUT_DOWN:
         return
+    
+    if paused or Game_over: #block all mouse actions during pause and game over
+        glutPostRedisplay()
+        return
+    
     if button == GLUT_LEFT_BUTTON:
         if not Game_over:
             create_bullet_list()
@@ -954,8 +977,8 @@ def idle():
         bullet_hit_enemy()
 
 
-    update_Game_wave_by_time()
-    update_obstacles()
+        update_Game_wave_by_time()
+        update_obstacles()
     glutPostRedisplay()
 
 def setupCamera():
@@ -1032,7 +1055,8 @@ def showScreen():
     - Draws everything of the screen
     """
     # Clear color and depth buffers
-    Day_Night_Transition()
+    if not paused:
+        Day_Night_Transition()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()  # Reset modelview matrix
     glViewport(0, 0, window_width,window_height)  # Set viewport size
