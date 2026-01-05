@@ -668,7 +668,10 @@ def enemy_collision():
             #colllide with tower
             dist = math.sqrt(e["x"]**2 + e["y"]**2)
             if dist < ENEMY_RADIUS + TOWER_RADIUS:
-                Tower_Current_HP -= 1
+                if e["kind"]=="boss":
+                    Tower_Current_HP -= 5
+                else:
+                    Tower_Current_HP -= 1
                 enemies.remove(e)
                 enemies.append(create_enemies_list(e["kind"], e["target"]))
 
@@ -732,7 +735,7 @@ def draw_bullet():
         glPopMatrix()
 
 def bullet_movement(dt):
-    bullet_speed=500
+    bullet_speed=600
     for b in bullets[:]:
             b[0]+=b[2]*(bullet_speed*dt)
             b[1]+=b[3]*(bullet_speed*dt)
