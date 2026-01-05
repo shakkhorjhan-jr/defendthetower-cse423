@@ -631,6 +631,7 @@ def bullet_hit_enemy():
                         break
                     else:
                         e1["hp"]-=1
+                    break
 
 #Game Wave Change
 def update_Game_wave_by_time():
@@ -678,7 +679,7 @@ def Increase_Tower_HP():
 
 #Restart
 def restrart():
-    global camera_z_axis_position,camera_angle,view_mode,first_person_mode
+    global camera_z_axis_position,camera_angle,view_mode,first_person_mode,Starting_Time
 
     global player_x,player_y,  Player_face_angle,player_min_position,player_max_postion,Player_Current_HP,Player_Max_HP,RID_LENGTH
     global obstacles,Obstacle_last_time,build_mode
@@ -688,6 +689,7 @@ def restrart():
     global Game_over,Game_Current_point,Game_Max_point,paused,Game_wave,Game_Wave_Start_Time
 
     # Camera-related variables
+    Starting_Time=time.time()
     camera_z_axis_position=500
     camera_angle=0
     view_mode=0
@@ -731,7 +733,7 @@ def restrart():
     Game_wave=1
     Game_Wave_Start_Time=time.time()
 
-  
+pause_start_time=0.0  
 def keyboardListener(key, x, y):
     """
     Handles keyboard inputs for player movement, gun rotation, camera updates, and cheat mode toggles.
@@ -747,7 +749,18 @@ def keyboardListener(key, x, y):
         glutPostRedisplay()
         return
     if key == b' ':
-        paused= not paused
+        global pause_start_time,Starting_Time,Game_Wave_Start_Time,Obstacle_last_time,enemy_shrink_last_time
+
+        if not paused:
+            paused=True
+            pause_start_time=time.time()
+        else:
+            paused=False
+            paused_duration=time.time()-pause_start_time
+            Starting_Time+=paused_duration #Freeze sky transition time
+            Game_Wave_Start_Time+=paused_duration #Freeze wave timer so enemies don't spawn instantly
+            Obstacle_last_time+=paused_duration #Freeze obstacle decay so they don't vanish instantly
+            enemy_shrink_last_time+=paused_duration #prevent dt spike in enemy animation timer
         glutPostRedisplay()
         return
     if paused:
@@ -860,6 +873,11 @@ def mouseListener(button, state, x, y):
     global first_person_mode
     if state != GLUT_DOWN:
         return
+    
+    if paused or Game_over: #block all mouse actions during pause and game over
+        glutPostRedisplay()
+        return
+    
     if button == GLUT_LEFT_BUTTON:
         if not Game_over:
             create_bullet_list()
@@ -895,8 +913,8 @@ def idle():
         bullet_hit_enemy()
 
 
-    update_Game_wave_by_time()
-    update_obstacles()
+        update_Game_wave_by_time()
+        update_obstacles()
     glutPostRedisplay()
 
 def setupCamera():
@@ -973,7 +991,8 @@ def showScreen():
     - Draws everything of the screen
     """
     # Clear color and depth buffers
-    Day_Night_Transition()
+    if not paused:
+        Day_Night_Transition()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()  # Reset modelview matrix
     glViewport(0, 0, window_width,window_height)  # Set viewport size
