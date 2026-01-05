@@ -790,7 +790,7 @@ def restrart():
 
     #Game parameter
     Game_over=False
-    Game_Current_point=690
+    Game_Current_point=0
     Game_Max_point=0
     paused=False
     Game_wave=1
